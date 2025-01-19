@@ -1,0 +1,158 @@
+from pygame import *
+
+# вынесем размер окна в константы для удобства
+# W - width, ширина
+# H - height, высота
+WIN_W = 700
+WIN_H = 500
+FPS = 144
+WHITE = (255, 255, 255)
+WHITE2 = (255, 255, 255)
+BLACK = (0, 0, 0 )
+
+init()
+
+# создание окна размером 700 на 500
+window = display.set_mode((WIN_W, WIN_H))
+
+class GameSprite(sprite.Sprite):
+    def __init__(self, img, x, y, width=65, height=65, speed=5):
+        super().__init__()
+        self.image = transform.scale(image.load(img),(width, height))
+        self.speed = speed
+        self.rect = self.image.get_rect()
+        self.rect.x = x 
+        self.rect.y = y
+        self.image_left = Surface.copy(self.image)
+        self.image_right = transform.flip(self.image, True, False)
+        self.is_left = True
+        self.is_up = True
+        self.image_up = transform.rotate(self.image, 270)
+        self.image_down = transform.rotate(self.image, 90)
+    def flip_left_right(self):
+        if self.is_left:
+            self.image = self.image_left
+        else:
+            self.image = self.image_right
+        old_center = self.rect.center
+        self.rect = self.image.get_rect()
+        self.rect.center = old_center
+    def flip_up_down(self):
+        if self.is_up:
+            self.image = self.image_up
+        else:
+            self.image = self.image_down
+    def flip_h(self):
+        self.is_left = not self.is_left
+    def flip_v(self):
+        self.is_up = not self.is_up
+    def reset(self):
+        window.blit(self.image,(self.rect.x, self.rect.y))
+
+class Player(GameSprite):
+    def __init__(self, img, x, y, width=65, height=65, speed=5):
+        super().__init__(img, x, y, width, height, speed)
+        old_center = self.rect.center
+        self.rect.width = width
+        self.rect.height = height
+        self.rect.center = old_center
+    def update(self, up, down):
+        keys_pressed = key.get_pressed()
+        if keys_pressed[up] and self.rect.y > 5:
+            self.rect.y -= self.speed
+        if keys_pressed[down] and self.rect.y < WIN_H - 5 - self.rect.height:
+            self.rect.y += self.speed
+class Ball(GameSprite):
+    def __init__(self, img, x, y, width=65, height=65, speed=2):
+        super().__init__(img, x, y, width, height, speed)
+        self.direction_x = -1
+        self.direction_y = -1
+        #значит -1 это в лево ili v verx
+    def update(self):
+        if self.rect.x <= 0 or self.rect.x >= WIN_W - self.rect.width:
+            self.direction_x *= -1
+        if self.rect.y <= 0 or self.rect.y >= WIN_H - self.rect.height:
+            self.direction_y *= -1
+        self.rect.x += self.speed * self.direction_x
+        self.rect.y += self.speed * self.direction_y
+
+        
+
+
+clock = time.Clock()
+# название окна
+display.set_caption("")
+
+# задать картинку фона такого же размера, как размер окна
+background = transform.scale(
+    image.load("background.png"),
+    # здесь - размеры картинки
+    (WIN_W, WIN_H)
+)
+
+mixer.init()
+#mixer.music.load('jungles.ogg')
+#mixer.music.play()
+#hit = mixer.Sound('kick.ogg')
+font.init()
+font_size = 70
+myfont = font.SysFont('Verdana', font_size)
+
+win1 = myfont.render('Левый Чиназес)', True, WHITE)
+win2 = myfont.render('Правый Чиназес)', True, WHITE2)
+
+platform1 = Player('i.png', 10 + 60, 200, 20, 120)
+platform2 = Player('i2.png', 670 - 50, 200, 20, 120)
+# platform2.flip_h()
+# platform2.flip_left_right()
+ball = Ball('ammo.shotgun.fire.png', 325,240, 20, 50)
+ball.flip_v()
+ball.flip_up_down()
+
+finish = False
+# игровой цикл
+game = True
+while game:
+
+    # отобразить картинку фона
+    
+
+    
+    # слушать события и обрабатывать
+    for e in event.get():
+        # выйти, если нажат "крестик"
+        if e.type == QUIT:
+            game = False
+    if not finish:
+        window.blit(background,(0, 0))
+        platform2.reset()
+        platform2.update(K_UP, K_DOWN)
+        platform1.reset()
+        platform1.update(K_w, K_s)
+        ball.reset()
+
+        ball.update()
+        if sprite.collide_rect(platform2, ball) or sprite.collide_rect(platform1, ball):
+            ball.direction_x *= -1
+            ball.flip_v()
+            ball.flip_up_down()
+
+            # window.blit(win, (200, 200))
+            # display.update()
+            # finish = True
+        if ball.rect.x <= 0:
+            window.blit(win2, (50, 200))
+            display.update()
+            finish = True
+        if ball.rect.x >= WIN_W - ball.rect.width:
+            window.blit(win1, (50, 200))
+            display.update()
+            finish = True
+    else:
+        ball.rect.x, ball.rect.y = WIN_W // 2 - 25, WIN_H // 2 - 25
+        time.delay(1000)
+        finish = False
+
+    # обновить экран, чтобы отобрзить все изменения
+    display.update()
+    clock.tick(FPS)
